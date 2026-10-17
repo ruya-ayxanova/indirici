@@ -1,17 +1,26 @@
 package com.example.indirici
 
 import android.app.Activity
-import android.app.DownloadManager
-import android.content.Context
-import android.net.Uri
+import android.content.ContentValues
+import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.provider.MediaStore
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
+import android.widget.RadioButton
+import android.widget.RadioGroup
 import android.widget.TextView
+import com.yausername.ffmpeg.FFmpeg
+import com.yausername.youtubedl_android.YoutubeDL
+import com.yausername.youtubedl_android.YoutubeDLRequest
+import java.io.File
 
 class MainActivity : Activity() {
+    private lateinit var status: TextView
+    private var ready = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -27,39 +36,114 @@ class MainActivity : Activity() {
         input.hint = "Bağlantıyı yapıştır"
         input.setSingleLine(true)
 
+        val group = RadioGroup(this)
+        val rVideo = RadioButton(this)
+        rVideo.text = "Video"
+        rVideo.id = 1001
+        val rAudio = RadioButton(this)
+        rAudio.text = "Müzik (MP3)"
+        rAudio.id = 1002
+        group.addView(rVideo)
+        group.addView(rAudio)
+        group.check(1001)
+
         val button = Button(this)
         button.text = "İndir"
 
-        val status = TextView(this)
+        status = TextView(this)
         status.textSize = 16f
         status.setPadding(0, 32, 0, 0)
+        status.text = "Motor hazırlanıyor, ilk açılışta bir dakika sürebilir..."
+
+        Thread {
+            try {
+                YoutubeDL.getInstance().init(applicationContext)
+                FFmpeg.getInstance().init(applicationContext)
+                ready = true
+                runOnUiThread { status.text = "Hazır. Bağlantıyı yapıştır." }
+            } catch (e: Exception) {
+                runOnUiThread { status.text = "Motor hatası: " + e.message }
+            }
+        }.start()
 
         button.setOnClickListener {
             val url = input.text.toString().trim()
-            if (!url.startsWith("http")) {
-                status.text = "Geçerli bir bağlantı yapıştır"
+            if (!ready) {
+                status.text = "Motor henüz hazır değil, biraz bekle."
                 return@setOnClickListener
             }
-            try {
-                val name = Uri.parse(url).lastPathSegment ?: "kervan_indirme"
-                val req = DownloadManager.Request(Uri.parse(url))
-                req.setTitle(name)
-                req.setNotificationVisibility(
-                    DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED
-                )
-                req.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, name)
-                val dm = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-                dm.enqueue(req)
-                status.text = "İndirme başladı. Bildirimden takip edebilirsin."
-            } catch (e: Exception) {
-                status.text = "Hata: " + e.message
+            if (!url.startsWith("http")) {
+                status.text = "Geçerli bir bağlantı yapıştır."
+                return@setOnClickListener
             }
+            val audio = group.checkedRadioButtonId == 1002
+            button.isEnabled = false
+            status.text = "Başlıyor..."
+            Thread {
+                try {
+                    val dir = File(getExternalFilesDir(null), "indirilen")
+                    dir.mkdirs()
+                    val before = dir.listFiles()?.map { it.name }?.toSet() ?: emptySet()
+
+                    val req = YoutubeDLRequest(url)
+                    req.addOption("-o", dir.absolutePath + "/%(title).80s.%(ext)s")
+                    req.addOption("--no-playlist")
+                    if (audio) {
+                        req.addOption("-x")
+                        req.addOption("--audio-format", "mp3")
+                    } else {
+                        req.addOption("-S", "res:1080,ext:mp4:m4a")
+                        req.addOption("--merge-output-format", "mp4")
+                    }
+
+                    YoutubeDL.getInstance().execute(req, null) { progress, _, _ ->
+                        runOnUiThread { status.text = "İndiriliyor: %" + progress.toInt() }
+                    }
+
+                    val newFiles = dir.listFiles()?.filter { it.name !in before } ?: emptyList()
+                    var saved = 0
+                    for (f in newFiles) {
+                        if (saveToDownloads(f)) saved++
+                    }
+                    runOnUiThread {
+                        status.text = if (saved > 0) {
+                            "Bitti. İndirilenler/Kervan klasörüne kaydedildi."
+                        } else {
+                            "Bitti. Dosya uygulama klasöründe: " + dir.absolutePath
+                        }
+                        button.isEnabled = true
+                    }
+                } catch (e: Exception) {
+                    runOnUiThread {
+                        status.text = "Hata: " + e.message
+                        button.isEnabled = true
+                    }
+                }
+            }.start()
         }
 
         root.addView(title)
         root.addView(input)
+        root.addView(group)
         root.addView(button)
         root.addView(status)
         setContentView(root)
+    }
+
+    private fun saveToDownloads(f: File): Boolean {
+        if (Build.VERSION.SDK_INT < 29) return false
+        val values = ContentValues()
+        values.put(MediaStore.Downloads.DISPLAY_NAME, f.name)
+        values.put(
+            MediaStore.Downloads.RELATIVE_PATH,
+            Environment.DIRECTORY_DOWNLOADS + "/Kervan"
+        )
+        val uri = contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+            ?: return false
+        contentResolver.openOutputStream(uri)?.use { out ->
+            f.inputStream().use { it.copyTo(out) }
+        }
+        f.delete()
+        return true
     }
 }
