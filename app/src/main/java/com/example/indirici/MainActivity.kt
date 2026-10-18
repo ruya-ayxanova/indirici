@@ -22,6 +22,8 @@ class MainActivity : Activity() {
     private lateinit var status: TextView
     private var ready = false
 private val COOKIE_REQ = 4242
+    private val BROWSER_REQ = 4343
+private lateinit var input: EditText
 private fun cookieFile() = File(filesDir, "cookies.txt")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -34,7 +36,7 @@ private fun cookieFile() = File(filesDir, "cookies.txt")
         title.text = "Kervan"
         title.textSize = 28f
 
-        val input = EditText(this)
+        input = EditText(this)
         input.hint = "Bağlantıyı yapıştır"
         input.setSingleLine(true)
 
@@ -140,12 +142,24 @@ cookieBtn.setOnClickListener {
     startActivityForResult(i, COOKIE_REQ)
 }
 root.addView(cookieBtn)
+val browserBtn = Button(this)
+browserBtn.text = "Tarayıcı"
+browserBtn.setOnClickListener {
+    startActivityForResult(Intent(this, BrowserActivity::class.java), BROWSER_REQ)
+}
+root.addView(browserBtn)
         root.addView(status)
         setContentView(root)
     }
 @Deprecated("Deprecated in Java")
 override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
     super.onActivityResult(requestCode, resultCode, data)
+    if (requestCode == BROWSER_REQ && resultCode == RESULT_OK) {
+    val link = data?.getStringExtra("url") ?: return
+    input.setText(link)
+    status.text = "Bağlantı alındı. İndir'e basabilirsin."
+    return
+    }
     if (requestCode == COOKIE_REQ && resultCode == RESULT_OK) {
         val uri = data?.data ?: return
         try {
