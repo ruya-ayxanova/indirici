@@ -1,5 +1,6 @@
 package com.example.indirici
 
+import android.content.Intent
 import android.app.Activity
 import android.content.ContentValues
 import android.os.Build
@@ -20,7 +21,8 @@ import java.io.File
 class MainActivity : Activity() {
     private lateinit var status: TextView
     private var ready = false
-
+private val COOKIE_REQ = 4242
+private fun cookieFile() = File(filesDir, "cookies.txt")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -88,6 +90,9 @@ class MainActivity : Activity() {
                     val req = YoutubeDLRequest(url)
                     req.addOption("-o", dir.absolutePath + "/%(title).80s.%(ext)s")
                     req.addOption("--no-playlist")
+                    if (cookieFile().exists()) {
+    req.addOption("--cookies", cookieFile().absolutePath)
+}
                     if (audio) {
                         req.addOption("-x")
                         req.addOption("--audio-format", "mp3")
@@ -126,10 +131,33 @@ class MainActivity : Activity() {
         root.addView(input)
         root.addView(group)
         root.addView(button)
+        val cookieBtn = Button(this)
+cookieBtn.text = "Çerez dosyası seç"
+cookieBtn.setOnClickListener {
+    val i = Intent(Intent.ACTION_OPEN_DOCUMENT)
+    i.addCategory(Intent.CATEGORY_OPENABLE)
+    i.type = "*/*"
+    startActivityForResult(i, COOKIE_REQ)
+}
+root.addView(cookieBtn)
         root.addView(status)
         setContentView(root)
     }
-
+@Deprecated("Deprecated in Java")
+override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+    super.onActivityResult(requestCode, resultCode, data)
+    if (requestCode == COOKIE_REQ && resultCode == RESULT_OK) {
+        val uri = data?.data ?: return
+        try {
+            contentResolver.openInputStream(uri)?.use { input ->
+                cookieFile().outputStream().use { out -> input.copyTo(out) }
+            }
+            status.text = "Çerez dosyası yüklendi."
+        } catch (e: Exception) {
+            status.text = "Çerez hatası: " + e.message
+        }
+    }
+}
     private fun saveToDownloads(f: File): Boolean {
         if (Build.VERSION.SDK_INT < 29) return false
         val values = ContentValues()
