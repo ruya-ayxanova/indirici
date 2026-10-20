@@ -1,151 +1,138 @@
 package com.example.indirici
 
+import android.annotation.SuppressLint
 import android.app.Activity
-import android.content.Intent
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.view.Gravity
 import android.view.View
-import android.view.ViewGroup
-import android.webkit.CookieManager
-import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import android.widget.Button
-import android.widget.EditText
 import android.widget.FrameLayout
-import android.widget.LinearLayout
 import android.widget.TextView
-import java.io.File
-import java.net.URI
+import android.widget.Toast
 
 class BrowserActivity : Activity() {
     private lateinit var web: WebView
-    private lateinit var urlBox: EditText
-    private lateinit var info: TextView
     private lateinit var root: FrameLayout
-    private lateinit var page: LinearLayout
-    private var customView: View? = null
-    private var customCallback: WebChromeClient.CustomViewCallback? = null
+    private lateinit var fab: TextView
+    private val handler = Handler(Looper.getMainLooper())
+    private var busy = false
 
+    private val js = "(function(){var v=document.querySelector('video');" +
+        "if(!v){return '';}var r=v.getBoundingClientRect();" +
+        "if(r.width<120||r.height<80){return '';}" +
+        "return r.top+','+r.right;})()"
+
+    private val poll = object : Runnable {
+        override fun run() {
+            web.evaluateJavascript(js) { result -> showButton(result) }
+            handler.postDelayed(this, 1000)
+        }
+    }
+
+    @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         root = FrameLayout(this)
-        page = LinearLayout(this)
-        page.orientation = LinearLayout.VERTICAL
-        page.setPadding(0, 96, 0, 0)
-
-        val bar = LinearLayout(this)
-        bar.orientation = LinearLayout.HORIZONTAL
-        urlBox = EditText(this)
-        urlBox.setSingleLine(true)
-        urlBox.setText("https://www.instagram.com/")
-        bar.addView(urlBox, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-        val go = Button(this)
-        go.text = "Git"
-        bar.addView(go)
-
         web = WebView(this)
         web.settings.javaScriptEnabled = true
         web.settings.domStorageEnabled = true
-        web.settings.userAgentString =
-            "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
-        CookieManager.getInstance().setAcceptCookie(true)
-        CookieManager.getInstance().setAcceptThirdPartyCookies(web, true)
-        web.webViewClient = object : WebViewClient() {
-            override fun onPageFinished(view: WebView?, url: String?) {
-                if (url != null) urlBox.setText(url)
-            }
+        web.webViewClient = WebViewClient()
+        root.addView(
+            web,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            )
+        )
+
+        val d = resources.displayMetrics.density
+        val size = (56 * d).toInt()
+        fab = TextView(this)
+        fab.text = "⬇"
+        fab.textSize = 20f
+        fab.setTextColor(Color.WHITE)
+        fab.gravity = Gravity.CENTER
+        val bg = GradientDrawable()
+        bg.shape = GradientDrawable.OVAL
+        bg.setColor(Color.parseColor("#A01828"))
+        fab.background = bg
+        fab.visibility = View.GONE
+        fab.setOnClickListener { startDownload(false) }
+        fab.setOnLongClickListener {
+            startDownload(true)
+            true
         }
-        web.webChromeClient = object : WebChromeClient() {
-            override fun onShowCustomView(view: View?, callback: CustomViewCallback?) {
-                if (view == null) return
-                customView = view
-                customCallback = callback
-                page.visibility = View.GONE
-                root.addView(view, FrameLayout.LayoutParams(-1, -1))
-            }
-            override fun onHideCustomView() {
-                customView?.let { root.removeView(it) }
-                customView = null
-                page.visibility = View.VISIBLE
-                customCallback?.onCustomViewHidden()
-            }
-        }
+        root.addView(fab, FrameLayout.LayoutParams(size, size))
 
-        info = TextView(this)
-        info.textSize = 14f
-        info.text = "Instagram'a giriş yap, sonra çerezleri kaydet."
-
-        val row = LinearLayout(this)
-        row.orientation = LinearLayout.HORIZONTAL
-        val saveBtn = Button(this)
-        saveBtn.text = "Çerezleri kaydet"
-        val sendBtn = Button(this)
-        sendBtn.text = "İndirmeye gönder"
-        row.addView(saveBtn, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-        row.addView(sendBtn, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-
-        page.addView(bar)
-        page.addView(web, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
-        page.addView(info)
-        page.addView(row)
-        root.addView(page)
         setContentView(root)
-
-        fun open() {
-            var u = urlBox.text.toString().trim()
-            if (u.isEmpty()) return
-            if (!u.startsWith("http")) u = "https://" + u
-            web.loadUrl(u)
-        }
-        go.setOnClickListener { open() }
-        saveBtn.setOnClickListener { saveCookies() }
-        sendBtn.setOnClickListener {
-            val i = Intent()
-            i.putExtra("url", web.url ?: "")
-            setResult(RESULT_OK, i)
-            finish()
-        }
-
-        open()
+        web.loadUrl(intent.getStringExtra("url") ?: "https://www.google.com")
     }
 
-    private fun saveCookies() {
-        val url = web.url ?: return
-        val host = URI(url).host ?: return
-        val parts = host.split(".")
-        val domain = "." + (if (parts.size >= 2) parts.takeLast(2).joinToString(".") else host)
-        val raw = CookieManager.getInstance().getCookie(url)
-        if (raw.isNullOrEmpty()) {
-            info.text = "Bu sitede çerez yok, önce giriş yap."
+    private fun showButton(result: String?) {
+        val s = result?.trim('"') ?: ""
+        val parts = s.split(",")
+        if (s.isEmpty() || parts.size < 2) {
+            if (!busy) fab.visibility = View.GONE
             return
         }
-        val expiry = System.currentTimeMillis() / 1000 + 31536000
-        val file = File(filesDir, "cookies.txt")
-        val old = if (file.exists()) {
-            file.readLines().filter { it.isNotBlank() && !it.startsWith("#") && !it.startsWith(domain) }
-        } else emptyList()
-        val sb = StringBuilder("# Netscape HTTP Cookie File\n")
-        old.forEach { sb.append(it).append("\n") }
-        for (c in raw.split(";")) {
-            val kv = c.trim().split("=", limit = 2)
-            if (kv.size == 2) {
-                sb.append(domain).append("\tTRUE\t/\tTRUE\t").append(expiry)
-                    .append("\t").append(kv[0]).append("\t").append(kv[1]).append("\n")
+        val top = parts[0].toFloatOrNull() ?: return
+        val right = parts[1].toFloatOrNull() ?: return
+        val d = resources.displayMetrics.density
+        val size = (56 * d)
+        val maxX = maxOf(root.width - size, 0f)
+        val maxY = maxOf(root.height - size, 0f)
+        fab.x = (right * d - size - 8 * d).coerceIn(0f, maxX)
+        fab.y = (top * d + 8 * d).coerceIn(0f, maxY)
+        fab.visibility = View.VISIBLE
+    }
+
+    private fun startDownload(audio: Boolean) {
+        if (busy) return
+        val u = web.url ?: return
+        busy = true
+        fab.text = "…"
+        Toast.makeText(this, "İndirme başlıyor...", Toast.LENGTH_SHORT).show()
+        Engine.init(this) { err ->
+            if (err != null) {
+                finishDownload("Motor hatası: " + err)
+            } else {
+                Engine.download(
+                    this, u, audio,
+                    { p -> fab.text = p.toString() + "%" },
+                    { msg -> finishDownload(msg) }
+                )
             }
         }
-        file.writeText(sb.toString())
-        info.text = "Çerezler kaydedildi: " + domain
+    }
+
+    private fun finishDownload(msg: String) {
+        busy = false
+        fab.text = "⬇"
+        Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        handler.post(poll)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        handler.removeCallbacks(poll)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        web.destroy()
     }
 
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
-        if (customView != null) {
-            web.webChromeClient?.onHideCustomView()
-        } else if (web.canGoBack()) {
-            web.goBack()
-        } else {
-            finish()
-        }
+        if (web.canGoBack()) web.goBack() else super.onBackPressed()
     }
 }
