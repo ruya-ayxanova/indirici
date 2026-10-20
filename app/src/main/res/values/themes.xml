@@ -1,0 +1,3 @@
+<resources>
+    <style name="KervanTheme" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>
