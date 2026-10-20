@@ -2,7 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
     <application
-        android:label="İndirici"
+        android:label="Kervan"
+        android:icon="@drawable/ic_launcher"
         android:theme="@style/KervanTheme">
         <activity
             android:name=".MainActivity"
@@ -11,16 +12,10 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity>      
-        <activity
-                    <activity android:name=".SitesActivity" />
+        </activity>
+        <activity android:name=".SitesActivity" />
         <activity
             android:name=".BrowserActivity"
             android:configChanges="orientation|screenSize|keyboardHidden" />
-          <activity
-              android:name=".BrowserActivity"
-            android:exported="false"
-            android:configChanges="orientation|screenSize|keyboardHidden" />
-        
     </application>
 </manifest>
