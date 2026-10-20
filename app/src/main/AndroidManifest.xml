@@ -14,8 +14,14 @@
             </intent-filter>
         </activity>      
         <activity
+                    <activity android:name=".SitesActivity" />
+        <activity
             android:name=".BrowserActivity"
+            android:configChanges="orientation|screenSize|keyboardHidden" />
+          <activity
+              android:name=".BrowserActivity"
             android:exported="false"
             android:configChanges="orientation|screenSize|keyboardHidden" />
+        
     </application>
 </manifest>
