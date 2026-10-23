@@ -14,6 +14,14 @@ import android.widget.ScrollView
 class MainActivity : Activity() {
     private var audio = false
 
+    private fun tile(title: String, sub: String, target: Class<*>): LinearLayout {
+        val c = Ui.card(this)
+        c.addView(Ui.text(this, title, 18f, Ui.TEXT, true))
+        c.addView(Ui.text(this, sub, 13f, Ui.SUB))
+        c.setOnClickListener { startActivity(Intent(this, target)) }
+        return c
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.statusBarColor = Color.parseColor(Ui.BG)
@@ -30,15 +38,23 @@ class MainActivity : Activity() {
         root.addView(Ui.text(this, "Kervan", 34f, Ui.TEXT, true))
         root.addView(Ui.text(this, "Video ve müzik indirici", 15f, Ui.SUB))
 
-        val sitesCard = Ui.card(this)
-        sitesCard.addView(Ui.text(this, "Siteler  ›", 20f, Ui.TEXT, true))
-        sitesCard.addView(
-            Ui.text(this, "Siteyi aç, videonun yanındaki oka dokun", 14f, Ui.SUB)
+        val tiles = LinearLayout(this)
+        tiles.orientation = LinearLayout.HORIZONTAL
+        val t1 = LinearLayout.LayoutParams(
+            0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f
         )
-        sitesCard.setOnClickListener {
-            startActivity(Intent(this, SitesActivity::class.java))
-        }
-        root.addView(sitesCard, Ui.lp(this, 20))
+        t1.rightMargin = Ui.dp(this, 6)
+        val t2 = LinearLayout.LayoutParams(
+            0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f
+        )
+        t2.leftMargin = Ui.dp(this, 6)
+        tiles.addView(
+            tile("Siteler", "Siteyi aç, oka dokun", SitesActivity::class.java), t1
+        )
+        tiles.addView(
+            tile("İndirilenler", "Kaydedilenleri oynat", DownloadsActivity::class.java), t2
+        )
+        root.addView(tiles, Ui.lp(this, 20))
 
         val card = Ui.card(this)
         card.addView(Ui.text(this, "Bağlantı", 14f, Ui.SUB))
