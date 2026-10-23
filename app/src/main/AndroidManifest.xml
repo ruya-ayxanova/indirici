@@ -14,6 +14,10 @@
             </intent-filter>
         </activity>
         <activity android:name=".SitesActivity" />
+        <activity android:name=".DownloadsActivity" />
+        <activity
+            android:name=".PlayerActivity"
+            android:configChanges="orientation|screenSize|keyboardHidden" />
         <activity
             android:name=".BrowserActivity"
             android:configChanges="orientation|screenSize|keyboardHidden" />
