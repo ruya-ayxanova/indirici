@@ -13,7 +13,15 @@ import android.widget.ScrollView
 
 class MainActivity : Activity() {
     private var audio = false
+    override fun onResume() {
+        super.onResume()
+        PinGate.check(this)
+    }
 
+    override fun onPause() {
+        super.onPause()
+        PinGate.touch()
+    }
     private fun tile(title: String, sub: String, target: Class<*>): LinearLayout {
         val c = Ui.card(this)
         c.addView(Ui.text(this, title, 18f, Ui.TEXT, true))
