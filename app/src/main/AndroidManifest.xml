@@ -16,6 +16,7 @@
         <activity android:name=".SitesActivity" />
         <activity android:name=".DownloadsActivity" />
         <activity
+                    <activity android:name=".PinActivity" />
             android:name=".PlayerActivity"
             android:configChanges="orientation|screenSize|keyboardHidden" />
         <activity
