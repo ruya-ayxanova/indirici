@@ -38,7 +38,13 @@ class DownloadsActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        PinGate.check(this)
         refresh()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        PinGate.touch()
     }
 
     private fun refresh() {
