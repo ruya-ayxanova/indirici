@@ -45,13 +45,15 @@ object Engine {
         url: String,
         audio: Boolean,
         onProgress: (Int) -> Unit,
-        onDone: (String) -> Unit
+        onDone: (String) -> Unit,
+        hidden: Boolean = false
     ) {
         val app = context.applicationContext
         Thread {
             val message = try {
                 val dir = File(app.getExternalFilesDir(null), "indirilen")
                 dir.mkdirs()
+                if (hidden) File(dir, ".nomedia").createNewFile()
                 val before = dir.listFiles()?.map { it.name }?.toSet() ?: emptySet()
 
                 val req = YoutubeDLRequest(url)
@@ -69,15 +71,19 @@ object Engine {
                     main.post { onProgress(progress.toInt()) }
                 }
 
-                val newFiles = dir.listFiles()?.filter { it.name !in before } ?: emptyList()
-                var saved = 0
-                for (f in newFiles) {
-                    if (saveToDownloads(app, f)) saved++
-                }
-                if (saved > 0) {
-                    "Bitti. İndirilenler/Kervan klasörüne kaydedildi."
+                if (hidden) {
+                    "Bitti. Video uygulamanın gizli klasörüne kaydedildi."
                 } else {
-                    "Bitti. Dosya: " + dir.absolutePath
+                    val newFiles = dir.listFiles()?.filter { it.name !in before } ?: emptyList()
+                    var saved = 0
+                    for (f in newFiles) {
+                        if (saveToDownloads(app, f)) saved++
+                    }
+                    if (saved > 0) {
+                        "Bitti. Indirilenler/Kervan klasörüne kaydedildi."
+                    } else {
+                        "Bitti. Dosya: " + dir.absolutePath
+                    }
                 }
             } catch (e: Exception) {
                 "Hata: " + e.message
